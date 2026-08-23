@@ -33,9 +33,8 @@ blobs, so two monitors never show the same wax.
 
 A blob is a plain JS object: position, velocity, radius, temperature, and a
 few per-blob random rates. Five by default, large (radius 7–16 % of the
-lamp height): real lamps have a few big masses, not a swarm. `Sim.js`
-advances the population; the function is pure so the same file runs under
-node (`dev/sim.js`) for checking the dynamics without a GPU.
+lamp height): real lamps have a few big masses, not a swarm. `Sim.js` advances the population; the functions are pure JS with no QML
+dependency, so the dynamics can be exercised headlessly under node.
 
 The motion comes from named laws, each quoted where it is applied in
 `Sim.js` and with its constants at the top of that file:
