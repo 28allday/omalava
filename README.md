@@ -64,8 +64,10 @@ Everything is in the bar dropdown:
 | Classic | Ocean |
 |---|---|
 | ![Classic](docs/classic.jpg) | ![Ocean](docs/ocean.jpg) |
-| **Sunset** | **Theme** (here, a purple Omarchy theme) |
-| ![Sunset](docs/sunset.jpg) | ![Theme](docs/theme.jpg) |
+| **Sunset** | **Acid** |
+| ![Sunset](docs/sunset.jpg) | ![Acid](docs/acid.jpg) |
+| **Theme** — follows your Omarchy theme (here, a purple one) | |
+| ![Theme](docs/theme.jpg) | |
 
 ## From a terminal or a keybind
 

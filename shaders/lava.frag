@@ -85,7 +85,7 @@ vec4 blob(vec2 p, vec4 b, float k) {
     float f = (r2 * r2) / (dd * dd);
     // d f / d p  (ripple treated as constant -- it is small)
     vec2 g = -4.0 * f / dd * vec2(d.x, dy / sy);
-    return vec4(f, g, f * r);
+    return vec4(f, g, f * f * r);
 }
 
 // The stalk: a column of wax from the pool up to a blob that has just lifted
@@ -121,7 +121,7 @@ vec4 capsule(vec2 p, vec2 A, vec2 B, float wA, float wB, float notch, float tA, 
     float q = 1.3 * w2 / dd;
     float f = q * q;
     vec2 g = -4.0 * f / dd * d;
-    return vec4(f, g, f * w);
+    return vec4(f, g, f * f * w);
 }
 
 vec4 stalk(vec2 p, vec4 b, vec4 s) {
@@ -189,29 +189,53 @@ vec4 poolField(vec2 p) {
     float R2 = R * R;
     float f = (R2 * R2) / (dy * dy * dy * dy);
     vec2 g = vec2(4.0 * f / dy * slope, -4.0 * f / dy);
-    return vec4(f, g, f * R);
+    return vec4(f, g, f * f * R);
 }
 
-vec4 field(vec2 p) {
-    vec4 f = poolField(p);
-    f += blob(p, b0, 0.0);  f += blob(p, b1, 1.0);  f += blob(p, b2, 2.0);  f += blob(p, b3, 3.0);
-    f += blob(p, b4, 4.0);  f += blob(p, b5, 5.0);  f += blob(p, b6, 6.0);  f += blob(p, b7, 7.0);
-    f += blob(p, b8, 8.0);  f += blob(p, b9, 9.0);  f += blob(p, b10, 10.0); f += blob(p, b11, 11.0);
-    f += stalk(p, b0, s0);  f += stalk(p, b1, s1);  f += stalk(p, b2, s2);   f += stalk(p, b3, s3);
-    f += stalk(p, b4, s4);  f += stalk(p, b5, s5);  f += stalk(p, b6, s6);   f += stalk(p, b7, s7);
-    f += stalk(p, b8, s8);  f += stalk(p, b9, s9);  f += stalk(p, b10, s10); f += stalk(p, b11, s11);
-    return f;
+// Sum of every primitive: x = field, yz = gradient, w = sum(f^2 * r). f2 out
+// is sum(f^2), so w / f2 is the radius of the wax this pixel belongs to,
+// weighted so the dominant feature wins -- a column hidden inside a mound
+// must not tint the mound with its own thinness.
+vec4 field(vec2 p, out float f2) {
+    vec4 acc = vec4(0.0); f2 = 0.0;
+    vec4 c;
+    c = poolField(p);          acc += c; f2 += c.x * c.x;
+    c = blob(p, b0, 0.0);      acc += c; f2 += c.x * c.x;
+    c = blob(p, b1, 1.0);      acc += c; f2 += c.x * c.x;
+    c = blob(p, b2, 2.0);      acc += c; f2 += c.x * c.x;
+    c = blob(p, b3, 3.0);      acc += c; f2 += c.x * c.x;
+    c = blob(p, b4, 4.0);      acc += c; f2 += c.x * c.x;
+    c = blob(p, b5, 5.0);      acc += c; f2 += c.x * c.x;
+    c = blob(p, b6, 6.0);      acc += c; f2 += c.x * c.x;
+    c = blob(p, b7, 7.0);      acc += c; f2 += c.x * c.x;
+    c = blob(p, b8, 8.0);      acc += c; f2 += c.x * c.x;
+    c = blob(p, b9, 9.0);      acc += c; f2 += c.x * c.x;
+    c = blob(p, b10, 10.0);    acc += c; f2 += c.x * c.x;
+    c = blob(p, b11, 11.0);    acc += c; f2 += c.x * c.x;
+    c = stalk(p, b0, s0);      acc += c; f2 += c.x * c.x;
+    c = stalk(p, b1, s1);      acc += c; f2 += c.x * c.x;
+    c = stalk(p, b2, s2);      acc += c; f2 += c.x * c.x;
+    c = stalk(p, b3, s3);      acc += c; f2 += c.x * c.x;
+    c = stalk(p, b4, s4);      acc += c; f2 += c.x * c.x;
+    c = stalk(p, b5, s5);      acc += c; f2 += c.x * c.x;
+    c = stalk(p, b6, s6);      acc += c; f2 += c.x * c.x;
+    c = stalk(p, b7, s7);      acc += c; f2 += c.x * c.x;
+    c = stalk(p, b8, s8);      acc += c; f2 += c.x * c.x;
+    c = stalk(p, b9, s9);      acc += c; f2 += c.x * c.x;
+    c = stalk(p, b10, s10);    acc += c; f2 += c.x * c.x;
+    c = stalk(p, b11, s11);    acc += c; f2 += c.x * c.x;
+    return acc;
 }
 
 void main() {
     // Lamp space: x spans 0..aspect, y is 0 at the base and 1 at the cap.
     vec2 p = vec2(qt_TexCoord0.x * aspect, 1.0 - qt_TexCoord0.y);
 
-    vec4 fg = field(p);
+    float f2;
+    vec4 fg = field(p, f2);
     float f = fg.x;
-    // Size of the wax feature this pixel belongs to: contribution-weighted
-    // radius of everything in the field here. Thin stalk, fat blob, deep pool.
-    float rLocal = fg.w / max(f, 1e-6);
+    // Size of the wax feature this pixel belongs to (see field()).
+    float rLocal = fg.w / max(f2, 1e-12);
 
     // ---- the liquid ------------------------------------------------------
     // Dark at the cap, lit at the base, with the bulb glowing through it.
