@@ -332,9 +332,20 @@ Item {
     "except Exception:\n" +
     "    pass\n"
 
+  // Hyprland can emit a storm of events (a window flood, a workspace
+  // animation); every one of them only *restarts the debounce*, and a probe
+  // cannot run again within fsMinIntervalMs of the last one, so the
+  // compositor can never drive more than ~2 helper spawns a second however
+  // busy it is. Work bounded by the clock, not by the producer.
+  readonly property int fsMinIntervalMs: 500
+  property double _fsLastRun: 0
+
   function refreshFullscreen() {
     if (!root.pauseOnFullscreen || !root.enabled) return
     if (fsProc.running) { fsDebounce.restart(); return }
+    var now = Date.now()
+    if (now - root._fsLastRun < root.fsMinIntervalMs) { fsDebounce.restart(); return }
+    root._fsLastRun = now
     fsProc.running = true
   }
 
@@ -364,7 +375,7 @@ Item {
 
   Timer {
     id: fsDebounce
-    interval: 120
+    interval: 250
     repeat: false
     onTriggered: root.refreshFullscreen()
   }
