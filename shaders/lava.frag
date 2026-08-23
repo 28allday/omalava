@@ -132,8 +132,11 @@ vec4 stalk(vec2 p, vec4 b, vec4 s) {
     vec2 B = b.xy - vec2(0.0, b.z * 0.35);
     float wA = b.z * 0.78 * vis, wB = b.z * 0.52 * vis;
     if (s.z <= 0.001) {
-        // Connected: one column from the pool to under the blob.
-        return capsule(p, A, B, wA, wB, notch, 0.0, 1.0);
+        // Connected: one column from the pool to under the blob. While it is
+        // fading in its STRENGTH fades too -- the bounded core is full height
+        // at any width, and a hairline with a full-strength core draws a line
+        // through the wax it is still hidden inside.
+        return capsule(p, A, B, wA, wB, notch, 0.0, 1.0) * (vis * vis);
     }
     // Broken. The gap has half-width `band` (in column-t units) either side
     // of the neck. The lower piece stays where the column was, anchored on
