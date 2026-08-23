@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "nosignal.omalava",
+  "name": "Omalava",
+  "version": "0.1.0",
+  "author": "Gavin Nugent",
+  "license": "MIT",
+  "description": "A live liquid-motion-lamp wallpaper for omarchy-shell, generated on the fly: wax warms on the heater, climbs out of the pool in columns, necks, breaks, rises, cools and sinks back -- a metaball field drawn by a GPU shader and moved by a small physics simulation that is seeded fresh every start, so it never loops or repeats. Follows your Omarchy theme or picks from six palettes, one independent lamp per monitor, freezes under fullscreen windows. Controlled from its bar widget or with: omarchy-shell omalava <on|off|toggle|shuffle|...>",
+  "kinds": ["service", "bar-widget"],
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Omalava",
+    "description": "Turn the lamp on and off, pick a palette, set speed, blobs and size.",
+    "category": "Desktop",
+    "defaultSection": "right",
+    "allowMultiple": false
+  }
+}
