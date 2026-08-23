@@ -12,12 +12,10 @@ The repo root *is* the plugin — that is what Omarchy clones and validates.
 | `manifest.json` | plugin manifest (`kinds`: `service`, `bar-widget`) |
 | `Service.qml` | the service: state, IPC target, fullscreen watch, one surface per monitor |
 | `Lamp.qml` | one lamp: runs the simulation and feeds the shader |
-| `Sim.js` | the wax physics, pure JS, shared with the headless check |
+| `Sim.js` | the wax physics, pure JS |
 | `BarWidget.qml` | bar icon; owns the dropdown's open state |
 | `Panel.qml` | the dropdown's contents, loaded by the widget |
 | `shaders/lava.frag` | the metaball shader; `bake.sh` compiles it to the committed `.qsb` |
-| `dev/preview.sh` | runs one lamp in a floating window without touching the shell |
-| `dev/sim.js` | runs the physics under node and prints where the wax spends its time |
 | `preview.jpg` | listing image; the marketplace only reads it at the ROOT |
 
 ## Architecture
@@ -189,22 +187,11 @@ pool; the population is seeded mostly there for that reason. Sources:
 [Plateau–Rayleigh instability](https://en.wikipedia.org/wiki/Plateau%E2%80%93Rayleigh_instability),
 [CS184 lava lamp sim](https://jessicaplotkin.github.io/lavalamp/).
 
-## Dev loop
+## Running it from a checkout
 
-```bash
-dev/preview.sh                       # one lamp in a floating window
-LAVA_PALETTE=ocean LAVA_SPEED=3 dev/preview.sh
-node dev/sim.js 7 300                # where does the wax spend its time?
-omarchy plugin validate .
-```
-
-Quickshell will not load files outside its config folder, by import or by
-URL, so `preview.sh` stages `Lamp.qml`, `Sim.js` and the shaders into a temp
-dir and runs there.
-
-To run the real thing from the checkout, symlink the folder into
-`~/.config/omarchy/plugins/nosignal.omalava`, `omarchy-shell shell
-rescanPlugins`, then `omarchy plugin enable nosignal.omalava --section
-right`. The service loads live; after a QML edit, `omarchy-restart-shell`.
-The dropdown opens headlessly with `omarchy-shell shell toggle
-nosignal.omalava`, which is how it gets screenshotted.
+Symlink the folder into `~/.config/omarchy/plugins/nosignal.omalava`, run
+`omarchy-shell shell rescanPlugins`, then `omarchy plugin enable
+nosignal.omalava --section right`. The service loads live; after a QML edit,
+`omarchy-restart-shell`. The dropdown opens headlessly with `omarchy-shell
+shell toggle nosignal.omalava`, which is how it gets screenshotted. After
+editing the shader, `shaders/bake.sh` rebuilds the committed `.qsb`.
