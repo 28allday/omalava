@@ -163,6 +163,17 @@ the handler dies, and the fallback initialises on defaults — which looks like
 per-monitor ground truth (whose visible workspace has a fullscreen window).
 The lamp on that monitor stops ticking. `status` reports the frozen monitors.
 
+The compositor is a producer outside the plugin, so its output is bounded at
+three boundaries — `timeout` limits how *long* the helper runs, never how
+*much* it reads or emits: the helper stream-reads each `hyprctl` reply up to
+a byte ceiling and treats an over-size reply as no reply; it caps the monitor
+and workspace counts it parses, truncates names, and emits at most 64 lines;
+and `head -c` sits on the pipe in front of the `StdioCollector`, so the shell
+can never be handed more than 8 KB whatever the helper does — the QML handler
+caps what it retains independently. On any failure the helper prints
+nothing, which reads as "no fullscreen monitor": the lamp keeps running
+rather than freezing on bad data.
+
 ### What real motion lamps do (the research the rework followed)
 
 In its "prime" a lamp is *a rising column plus blobs*: wax climbs out of

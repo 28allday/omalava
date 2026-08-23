@@ -281,19 +281,54 @@ Item {
   // Hyprland's event stream says WHEN to re-check; hyprctl gives per-monitor
   // ground truth (whose visible workspace has a fullscreen window). The lamp
   // on that monitor freezes -- it is covered anyway, so ticking it is waste.
+  //
+  // The compositor is a producer outside this plugin, so its output is
+  // bounded at three boundaries, not one -- `timeout` limits how LONG the
+  // helper runs, never how MUCH it reads or emits:
+  //   1. the helper stream-reads each hyprctl query up to a hard byte ceiling
+  //      and treats an over-size reply as no reply;
+  //   2. it caps the monitor and workspace counts it parses and truncates
+  //      every name, and emits at most maxFsMonitors lines;
+  //   3. `head -c` sits on the pipe in front of the StdioCollector, so the
+  //      shell process can never receive more than fsStdoutBytes whatever the
+  //      helper does -- and the QML handler caps what it RETAINS independently.
+  // On any failure the helper prints nothing, which reads as "no fullscreen
+  // monitor": the lamp keeps running rather than freezing on bad data.
   property var fullscreenMonitors: ({})
+  readonly property int maxFsMonitors: 64        // far above any real monitor count
+  readonly property int fsQueryBytes: 262144     // per hyprctl reply, read with a ceiling
+  readonly property int fsStdoutBytes: 8192      // helper stdout, capped on the pipe
 
   readonly property string fsScript:
-    "import json,subprocess\n" +
+    "import json,subprocess,sys\n" +
+    "CAP=" + root.fsQueryBytes + "; MAXM=" + root.maxFsMonitors + "; MAXW=1024; MAXN=" + root.maxNameLength + "\n" +
     "def q(c):\n" +
-    "    return json.loads(subprocess.check_output(['hyprctl','-j',c]))\n" +
+    "    p=subprocess.Popen(['hyprctl','-j',c],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL)\n" +
+    "    try:\n" +
+    "        data=p.stdout.read(CAP+1)\n" +
+    "    finally:\n" +
+    "        try: p.stdout.close()\n" +
+    "        except Exception: pass\n" +
+    "        try: p.kill()\n" +
+    "        except Exception: pass\n" +
+    "        p.wait()\n" +
+    "    if len(data)>CAP: raise ValueError('reply over ceiling')\n" +
+    "    v=json.loads(data)\n" +
+    "    if not isinstance(v,list): raise ValueError('not a list')\n" +
+    "    return v\n" +
     "try:\n" +
-    "    mons=q('monitors'); wss=q('workspaces')\n" +
-    "    fs={w.get('id'): bool(w.get('hasfullscreen')) for w in wss}\n" +
+    "    mons=q('monitors')[:MAXM]; wss=q('workspaces')[:MAXW]\n" +
+    "    fs={}\n" +
+    "    for w in wss:\n" +
+    "        if isinstance(w,dict): fs[w.get('id')]=bool(w.get('hasfullscreen'))\n" +
+    "    out=[]\n" +
     "    for m in mons:\n" +
+    "        if not isinstance(m,dict): continue\n" +
     "        aw=m.get('activeWorkspace') or {}\n" +
-    "        if fs.get(aw.get('id')):\n" +
-    "            print(m.get('name'))\n" +
+    "        if isinstance(aw,dict) and fs.get(aw.get('id')):\n" +
+    "            n=str(m.get('name',''))[:MAXN]\n" +
+    "            if n: out.append(n)\n" +
+    "    sys.stdout.write('\\n'.join(out[:MAXM]))\n" +
     "except Exception:\n" +
     "    pass\n"
 
@@ -305,14 +340,22 @@ Item {
 
   Process {
     id: fsProc
-    command: root.timeoutPrefix.concat(["python3", "-c", root.fsScript])
+    // The script crosses as argv ($1), never interpolated; head -c on the
+    // pipe bounds what the collector can ever be handed.
+    command: root.timeoutPrefix.concat(["bash", "-c",
+      'python3 -c "$1" 2>/dev/null | head -c "$2"',
+      "_", root.fsScript, String(root.fsStdoutBytes)])
     stdout: StdioCollector {
       onStreamFinished: {
+        // Cap what is RETAINED independently of what arrived.
         var set = ({})
         var lines = String(text || "").split("\n")
-        for (var i = 0; i < lines.length; i++) {
+        var kept = 0
+        for (var i = 0; i < lines.length && kept < root.maxFsMonitors; i++) {
           var n = lines[i].trim()
-          if (n) set[n] = true
+          if (n === "") continue
+          if (n.length > root.maxNameLength) n = n.substring(0, root.maxNameLength)
+          if (!set[n]) { set[n] = true; kept++ }
         }
         root.fullscreenMonitors = set
       }
